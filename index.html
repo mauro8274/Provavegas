@@ -27,12 +27,12 @@
             color: var(--text-color);
         }
 
-        /* STILE INTESTAZIONE IMMAGINE (MODIFICATO) */
+        /* STILE INTESTAZIONE IMMAGINE (MODIFICATO: Rimosso background blu) */
         .header-image-container {
             text-align: center;
             padding: 10px 0;
             margin: 0;
-            background-color: #2c3e50; /* Colore di sfondo scuro per contrasto */
+            /* background-color rimosso per eliminare le bande laterali */
         }
         .header-image-container img {
             max-width: 100%; /* Rende l'immagine responsiva */
@@ -224,7 +224,7 @@
             margin-right: auto;
         }
         
-        /* STILI PAGINA STATISTICHE */
+        /* STILI PAGINA STATISTICHE (RIDUZIONE FONT/PADDING) */
         #stats-page {
             background-color: var(--light-gray-bg);
             padding: 20px;
@@ -238,10 +238,11 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            font-size: 0.9em; /* Riduco font-size */
         }
         .stats-table th, .stats-table td {
             border: 1px solid var(--border-color);
-            padding: 10px;
+            padding: 8px; /* Riduco padding */
             text-align: center;
         }
         .stats-table th {
@@ -381,7 +382,11 @@
                     </tbody>
                 </table>
             </div>
-            
+
+            <div class="button-group" style="justify-content: center;">
+                <button id="back-to-main" class="btn btn-blue">Torna alla Pagina Principale</button>
+                <button id="reset-archivio" class="btn btn-red">Reset Archivio Statistiche</button>
+            </div>
             <div class="stats-sessions">
                 <h3>Dettaglio Sessioni Archiviate</h3>
                 <table class="stats-table">
@@ -395,11 +400,6 @@
                     <tbody id="sessions-body">
                         </tbody>
                 </table>
-            </div>
-
-            <div class="button-group" style="justify-content: center;">
-                <button id="back-to-main" class="btn btn-blue">Torna alla Pagina Principale</button>
-                <button id="reset-archivio" class="btn btn-red">Reset Archivio Statistiche</button>
             </div>
         </div>
         
@@ -457,7 +457,7 @@
         let suggestedNumbers = null; 
         let currentStep = 0; 
         let currentSaldo = 0; 
-        let winStepForArchive = null; // Nuovo stato per registrare lo step di vittoria
+        let winStepForArchive = null; // Stato per registrare lo step di vittoria
         
         // STATO GLOBALE ARCHIVIO
         let sessionArchives = []; 
@@ -469,7 +469,6 @@
         
         // Funzione helper per ottenere il valore unitario come numero (convertendo la virgola)
         function getUnitValue() {
-             // Sostituisce la virgola con il punto e poi converte in float.
              const value = valoreUnitarioInput.value.replace(',', '.');
              return parseFloat(value) || 0;
         }
@@ -491,10 +490,8 @@
         function initializeProgressionTable() {
             progressionBody.innerHTML = '';
             
-            // Usiamo la funzione getUnitValue()
             const unitValue = getUnitValue() || 0.10; 
             
-            // Aggiorna il valore nell'input se era vuoto o zero
             if (!valoreUnitarioInput.value || getUnitValue() <= 0) {
                  valoreUnitarioInput.value = unitValue.toFixed(2).replace('.', ',');
             }
@@ -519,7 +516,6 @@
                     <td>${formatCurrency(miniBet)}</td>
                 `;
             });
-            // Rievidenzia lo step corrente se presente (necessario dopo la rigenerazione)
             if (currentStep > 0) {
                  highlightStep(currentStep);
             }
@@ -543,8 +539,6 @@
             document.getElementById('medio1-number').textContent = numbers[1] || '?';
             document.getElementById('medio2-number').textContent = numbers[2] || '?';
             
-            // Logica per non mostrare i numeri MINI nell'intestazione se lo Step è >= 7
-            // La puntata è gestita dai moltiplicatori, ma la visualizzazione viene aggiornata.
             const miniDisplay = (isBettingPhase && currentStep >= 7) ? '—' : (numbers[3] || '?');
             document.getElementById('mini1-number').textContent = miniDisplay;
             document.getElementById('mini2-number').textContent = miniDisplay;
@@ -568,7 +562,6 @@
                 let numbersToDisplay = [...numbers];
 
                 // Filtra i MINI se siamo in fase di scommessa e lo step è 7 o superiore
-                // (currentStep è lo step precedente/corrente, prima che avvenga l'incremento/reset)
                 if (isBettingPhase && currentStep >= 7) {
                     // Mantiene solo BIG e 2 MEDI (indici 0, 1, 2)
                     numbersToDisplay = [numbers[0], numbers[1], numbers[2]];
@@ -602,7 +595,6 @@
         }
         
         function updateSaldoLoss() {
-             // Usa getUnitValue() per il calcolo
              const unitValue = getUnitValue(); 
              const currentStake = calculateStake(currentStep, unitValue);
 
@@ -624,7 +616,6 @@
             isBettingPhase = true;
             suggestedNumbers = rigaDati;
             
-            // Inizio sempre dallo Step 1 (che è < 7, quindi 7 numeri giocabili/suggeriti)
             updateProgressionHeader(rigaDati); 
             updateSuggestedNumbers(rigaDati);
             
@@ -654,7 +645,6 @@
                 } else if (winIndex === 1 || winIndex === 2) { 
                     betOnWinNumber = currentStake.medioBet;
                 } else if (winIndex >= 3 && currentStep <= 6) { 
-                    // I MINI numeri sono giocati solo fino allo step 6 (indices 3, 4, 5, 6)
                     betOnWinNumber = currentStake.miniBet;
                 } 
                 
@@ -662,11 +652,12 @@
                 currentSaldo += winLord;
                 
                 saldoRealTime.textContent = formatCurrency(currentSaldo);
-                winStepForArchive = currentStep; // Registro lo step di vittoria
+                winStepForArchive = currentStep; // REGISTRA LO STEP DI VITTORIA (FIX)
                 
-                alert(`HAI VINTO ${formatCurrency(winLord)}! Procedi ad archiviare la giocata. La progressione è stata resettata.`);
+                alert(`HAI VINTO ${formatCurrency(winLord)}! **Archivia il saldo ora per registrare la vittoria e resettare il gioco.**`);
                 
-                resetProgressionState();
+                // Disabilita l'input per forzare l'archiviazione e PRESERVA LO STATO
+                inputEstratto.disabled = true; 
 
             } else {
                 if (currentStep < 20) {
@@ -674,8 +665,6 @@
                     highlightStep(currentStep);
                     updateSaldoLoss(); 
                     
-                    // Aggiornamento intestazioni/numeri suggeriti dopo il cambio di step
-                    // Chiamiamo updateSuggestedNumbers e updateProgressionHeader per gestire il filtraggio MINI
                     updateSuggestedNumbers(suggestedNumbers); 
                     updateProgressionHeader(suggestedNumbers || []); 
 
@@ -742,7 +731,6 @@
             currentSaldo = 0; 
             saldoRealTime.textContent = formatCurrency(currentSaldo);
             
-            // Assicurati che il valore unitario non sia vuoto (o 0) dopo un reset
             if (!valoreUnitarioInput.value || getUnitValue() <= 0) {
                  valoreUnitarioInput.value = '0,10'; 
             }
@@ -761,6 +749,7 @@
             updateEstrattiList();
             initializeProgressionTable(); 
             inputEstratto.focus();
+            inputEstratto.disabled = false; // Ribilito l'input
             
             checkRichiamaUltimiButtonState();
         }
@@ -811,7 +800,7 @@
             const newEntry = { 
                 timestamp: timestamp, 
                 saldo: currentSaldo,
-                winStep: currentSaldo > 0 ? winStepForArchive : null // Registro lo step solo se c'è stata una vincita
+                winStep: currentSaldo > 0 ? winStepForArchive : null 
             };
             sessionArchives.unshift(newEntry);
             saveArchives();
@@ -894,7 +883,6 @@
         // ===============================================
 
         window.onload = () => {
-            // Impostiamo il campo a 'text' per accettare la virgola, e lo inizializziamo a 0,10.
             valoreUnitarioInput.value = '0,10'; 
             initializeProgressionTable(); 
             loadArchives(); 
@@ -929,9 +917,7 @@
         });
         
         // Listener per l'aggiornamento della tabella di progressione quando cambia il Valore Unitario
-        // Rende il campo di input editabile (essendo text) e permette la virgola.
         valoreUnitarioInput.addEventListener('input', () => {
-             // Forza l'aggiornamento della tabella ogni volta che l'input cambia
              initializeProgressionTable();
         });
         
