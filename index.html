@@ -27,19 +27,17 @@
             color: var(--text-color);
         }
 
-        /* STILE INTESTAZIONE IMMAGINE (MODIFICATO: Rimosso background blu) */
+        /* STILE INTESTAZIONE IMMAGINE */
         .header-image-container {
             text-align: center;
             padding: 10px 0;
             margin: 0;
-            /* background-color rimosso per eliminare le bande laterali */
         }
         .header-image-container img {
             max-width: 100%; /* Rende l'immagine responsiva */
             height: auto;
             max-height: 100px; /* Limita l'altezza per non occupare troppo spazio */
         }
-        /* FINE MODIFICA INTESTAZIONE */
 
         .container {
             max-width: 1200px;
@@ -238,11 +236,11 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
-            font-size: 0.9em; /* Riduco font-size */
+            font-size: 0.9em; 
         }
         .stats-table th, .stats-table td {
             border: 1px solid var(--border-color);
-            padding: 8px; /* Riduco padding */
+            padding: 8px; 
             text-align: center;
         }
         .stats-table th {
@@ -387,6 +385,7 @@
                 <button id="back-to-main" class="btn btn-blue">Torna alla Pagina Principale</button>
                 <button id="reset-archivio" class="btn btn-red">Reset Archivio Statistiche</button>
             </div>
+            
             <div class="stats-sessions">
                 <h3>Dettaglio Sessioni Archiviate</h3>
                 <table class="stats-table">
@@ -418,9 +417,7 @@
         const btnArchiviaSaldo = document.getElementById('archivia-saldo');
         const btnVisualizzaArchivio = document.getElementById('visualizza-archivio');
         const btnRichiamaUltimi = document.getElementById('richiama-ultimi'); 
-        const btnBackToMain = document.getElementById('back-to-main');
-        const btnResetArchivio = document.getElementById('reset-archivio');
-
+        
         const mainPage = document.getElementById('main-page');
         const statsPage = document.getElementById('stats-page');
         const progressionBody = document.getElementById('progression-body');
@@ -442,11 +439,20 @@
         const PROGRESSION_MULTIPLIERS = [
             { BIG: 4, MEDI: 2, MINI: 1 }, { BIG: 4, MEDI: 2, MINI: 1 }, { BIG: 4, MEDI: 2, MINI: 1 },
             { BIG: 6, MEDI: 4, MINI: 1 }, { BIG: 6, MEDI: 4, MINI: 2 }, { BIG: 10, MEDI: 8, MINI: 4 },
-            { BIG: 8, MEDI: 4, MINI: 0 }, { BIG: 8, MEDI: 5, MINI: 0 }, { BIG: 10, MEDI: 5, MINI: 0 },
-            { BIG: 10, MEDI: 6, MINI: 0 }, { BIG: 12, MEDI: 8, MINI: 0 }, { BIG: 12, MEDI: 8, MINI: 0 },
-            { BIG: 8, MEDI: 8, MINI: 0 }, { BIG: 9, MEDI: 9, MINI: 0 }, { BIG: 10, MEDI: 10, MINI: 0 },
-            { BIG: 11, MEDI: 11, MINI: 0 }, { BIG: 12, MEDI: 12, MINI: 0 }, { BIG: 12, MEDI: 12, MINI: 0 },
-            { BIG: 13, MEDI: 13, MINI: 0 }, { BIG: 15, MEDI: 15, MINI: 0 } 
+            { BIG: 8, MEDI: 4, MINI: 0 }, // Step 7: I MINI non sono più puntati (moltiplicatore 0)
+            { BIG: 8, MEDI: 5, MINI: 0 }, 
+            { BIG: 10, MEDI: 5, MINI: 0 },
+            { BIG: 10, MEDI: 6, MINI: 0 }, 
+            { BIG: 12, MEDI: 8, MINI: 0 }, 
+            { BIG: 12, MEDI: 8, MINI: 0 },
+            { BIG: 8, MEDI: 8, MINI: 0 }, 
+            { BIG: 9, MEDI: 9, MINI: 0 }, 
+            { BIG: 10, MEDI: 10, MINI: 0 },
+            { BIG: 11, MEDI: 11, MINI: 0 }, 
+            { BIG: 12, MEDI: 12, MINI: 0 }, 
+            { BIG: 12, MEDI: 12, MINI: 0 },
+            { BIG: 13, MEDI: 13, MINI: 0 }, 
+            { BIG: 15, MEDI: 15, MINI: 0 } 
         ];
 
         // STATO GLOBALE PAGINA PRINCIPALE
@@ -457,7 +463,7 @@
         let suggestedNumbers = null; 
         let currentStep = 0; 
         let currentSaldo = 0; 
-        let winStepForArchive = null; // Stato per registrare lo step di vittoria
+        let winStepForArchive = null; 
         
         // STATO GLOBALE ARCHIVIO
         let sessionArchives = []; 
@@ -467,7 +473,6 @@
         // ===============================================
         const formatCurrency = (value) => `€ ${value.toFixed(2).replace('.', ',')}`;
         
-        // Funzione helper per ottenere il valore unitario come numero (convertendo la virgola)
         function getUnitValue() {
              const value = valoreUnitarioInput.value.replace(',', '.');
              return parseFloat(value) || 0;
@@ -486,7 +491,6 @@
             return { bigBet, medioBet, miniBet, totalStake };
         }
 
-        // Funzione per rigenerare la tabella di progressione
         function initializeProgressionTable() {
             progressionBody.innerHTML = '';
             
@@ -539,6 +543,7 @@
             document.getElementById('medio1-number').textContent = numbers[1] || '?';
             document.getElementById('medio2-number').textContent = numbers[2] || '?';
             
+            // Regola: Nascondi i MINI nell'intestazione se Step >= 7
             const miniDisplay = (isBettingPhase && currentStep >= 7) ? '—' : (numbers[3] || '?');
             document.getElementById('mini1-number').textContent = miniDisplay;
             document.getElementById('mini2-number').textContent = miniDisplay;
@@ -561,9 +566,8 @@
                 
                 let numbersToDisplay = [...numbers];
 
-                // Filtra i MINI se siamo in fase di scommessa e lo step è 7 o superiore
+                // Regola: Mostra solo i 3 numeri se siamo in fase di scommessa e lo step è 7 o superiore
                 if (isBettingPhase && currentStep >= 7) {
-                    // Mantiene solo BIG e 2 MEDI (indici 0, 1, 2)
                     numbersToDisplay = [numbers[0], numbers[1], numbers[2]];
                 }
                 
@@ -630,14 +634,26 @@
 
         function processBettingPhase(numeroEstratto) {
             const unitValue = getUnitValue();
-            const isWin = suggestedNumbers.includes(numeroEstratto);
             const currentStake = calculateStake(currentStep, unitValue);
             
             if (!currentStake) return;
 
+            let isWin = false;
+            let winIndex = -1;
+            
+            // Regola: Se Step >= 7, consideriamo solo i primi 3 numeri (BIG e 2 MEDI)
+            let checkNumbers = suggestedNumbers;
+            if (currentStep >= 7) {
+                checkNumbers = suggestedNumbers.slice(0, 3);
+            }
+            
+            if (checkNumbers.includes(numeroEstratto)) {
+                 isWin = true;
+                 winIndex = suggestedNumbers.indexOf(numeroEstratto);
+            }
+
             if (isWin) {
                 let betOnWinNumber = 0;
-                const winIndex = suggestedNumbers.indexOf(numeroEstratto);
                 
                 // Determina la puntata specifica sul numero vincente
                 if (winIndex === 0) { 
@@ -645,6 +661,7 @@
                 } else if (winIndex === 1 || winIndex === 2) { 
                     betOnWinNumber = currentStake.medioBet;
                 } else if (winIndex >= 3 && currentStep <= 6) { 
+                    // I MINI numeri sono giocati solo fino allo step 6 
                     betOnWinNumber = currentStake.miniBet;
                 } 
                 
@@ -652,9 +669,10 @@
                 currentSaldo += winLord;
                 
                 saldoRealTime.textContent = formatCurrency(currentSaldo);
-                winStepForArchive = currentStep; // REGISTRA LO STEP DI VITTORIA (FIX)
+                winStepForArchive = currentStep; 
                 
-                alert(`HAI VINTO ${formatCurrency(winLord)}! **Archivia il saldo ora per registrare la vittoria e resettare il gioco.**`);
+                // MESSAGGIO DI VINCITA AGGIORNATO
+                alert(`HAI VINTO ${formatCurrency(winLord)}! Il saldo Real Time aggiornato è ${formatCurrency(currentSaldo)}. Archivia la sessione.`);
                 
                 // Disabilita l'input per forzare l'archiviazione e PRESERVA LO STATO
                 inputEstratto.disabled = true; 
@@ -719,7 +737,7 @@
             isBettingPhase = false;
             suggestedNumbers = null;
             currentStep = 0;
-            winStepForArchive = null; // Resetta lo step di vittoria
+            winStepForArchive = null; 
             
             highlightStep(0); 
             updateProgressionHeader(['?', '?', '?', '?', '?', '?', '?']); 
@@ -749,7 +767,7 @@
             updateEstrattiList();
             initializeProgressionTable(); 
             inputEstratto.focus();
-            inputEstratto.disabled = false; // Ribilito l'input
+            inputEstratto.disabled = false; 
             
             checkRichiamaUltimiButtonState();
         }
@@ -796,7 +814,6 @@
                 hour: '2-digit', minute: '2-digit', second: '2-digit' 
             });
             
-            // Includo lo step di vittoria solo se il saldo è positivo
             const newEntry = { 
                 timestamp: timestamp, 
                 saldo: currentSaldo,
@@ -841,7 +858,6 @@
                 `;
             });
             
-            // Calcolo della percentuale di vittorie
             let winPercentage = 0;
             if (totalEvents > 0) {
                 winPercentage = ((totalWins / totalEvents) * 100).toFixed(1);
@@ -873,6 +889,13 @@
         function displayStatsPage() {
             loadArchives(); 
             updateStatsTables();
+            document.getElementById('back-to-main').addEventListener('click', () => { 
+                statsPage.style.display = 'none';
+                mainPage.style.display = 'block';
+                checkRichiamaUltimiButtonState(); 
+            });
+            document.getElementById('reset-archivio').addEventListener('click', resetStatsArchive);
+
             mainPage.style.display = 'none';
             statsPage.style.display = 'block';
         }
@@ -887,6 +910,10 @@
             initializeProgressionTable(); 
             loadArchives(); 
             checkRichiamaUltimiButtonState(); 
+            
+            // Re-assegna i listener ai pulsanti dell'archivio (se non sono stati già fatti in modo fisso)
+            document.getElementById('visualizza-archivio').addEventListener('click', displayStatsPage); 
+            document.getElementById('archivia-saldo').addEventListener('click', archiveCurrentSaldo); 
         };
 
         // Listener Principale (Input Numero Estratto)
@@ -937,10 +964,6 @@
             }
         });
         
-        // Listener Archivio
-        btnVisualizzaArchivio.addEventListener('click', displayStatsPage); 
-        btnArchiviaSaldo.addEventListener('click', archiveCurrentSaldo); 
-        
         // Listener Richiama Ultimi
         btnRichiamaUltimi.addEventListener('click', () => {
             const lastNumbers = loadLastExtractedNumbers();
@@ -954,13 +977,8 @@
             }
         });
         
-        btnBackToMain.addEventListener('click', () => { 
-            statsPage.style.display = 'none';
-            mainPage.style.display = 'block';
-            checkRichiamaUltimiButtonState(); 
-        });
-        
-        btnResetArchivio.addEventListener('click', resetStatsArchive); 
+        // I listener per Visualizza Archivio, Archivia Saldo, Back to Main e Reset Archivio
+        // sono stati gestiti in modo fisso in window.onload e displayStatsPage per garantire la persistenza.
     </script>
 
 </body>
