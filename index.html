@@ -815,15 +815,12 @@
                 }
                 const data = await response.json();
                 
-                // JSONBin.io restituisce un oggetto con la proprietà 'record'
-                if (data && data.record !== undefined) {
-                    // Se il record è nullo o vuoto (e deve essere un array), restituisci array vuoto per evitare errori
-                    if (data.record === null || (typeof data.record === 'object' && Object.keys(data.record).length === 0)) {
-                        return [];
-                    }
-                    return data.record;
+                // Estrai il record, gestendo i casi in cui è nullo o vuoto
+                const record = data.record;
+                if (record === null || (typeof record === 'object' && Object.keys(record).length === 0)) {
+                    return [];
                 }
-                return data; // Ritorna l'oggetto completo se non c'è la chiave 'record' (dipende dalla versione API)
+                return record;
                 
             } catch (error) {
                 console.error(`Errore nel caricamento del Bin ${binId}:`, error);
@@ -845,7 +842,11 @@
                     },
                     body: JSON.stringify(data)
                 });
-                return response.ok;
+                if (!response.ok) {
+                    console.error(`Salvataggio Bin ${binId} fallito con stato: ${response.status}`);
+                    return false;
+                }
+                return true;
             } catch (error) {
                 console.error(`Errore nel salvataggio del Bin ${binId}:`, error);
                 return false;
@@ -854,12 +855,14 @@
 
         async function loadArchivesFromCloud() {
             const data = await fetchBin(STATS_BIN_ID);
+            
+            // Verifica robusta: se data è un array, usalo. Altrimenti, usa un array vuoto.
             if (data && Array.isArray(data)) {
                 sessionArchives = data;
             } else {
                 sessionArchives = [];
             }
-            console.log("Archivio statistiche caricato dal Cloud.");
+            console.log("Archivio statistiche caricato dal Cloud. Elementi:", sessionArchives.length);
         }
         
         async function saveArchivesToCloud() {
@@ -867,8 +870,9 @@
             if (success) {
                 console.log("Archivio statistiche salvato su Cloud.");
             } else {
-                 alert("ERRORE: Impossibile salvare l'archivio sul Cloud. Controlla la tua Chiave API e l'ID Bin.");
+                 alert("ERRORE: Impossibile salvare l'archivio STATISTICHE sul Cloud. Controlla la tua Chiave API e l'ID Bin.");
             }
+            return success;
         }
         
         async function loadLastExtractedNumbersFromCloud() {
@@ -886,6 +890,7 @@
             if (!success) {
                  console.error("Impossibile salvare gli ultimi numeri estratti sul Cloud.");
             }
+            return success;
         }
         
         // ===============================================
@@ -905,12 +910,15 @@
             };
             sessionArchives.unshift(newEntry);
             
-            await saveArchivesToCloud();
+            const success = await saveArchivesToCloud();
             await saveLastExtractedNumbersToCloud(numeriEstratti); 
             
-            resetAllMainData(); 
-            
-            alert(`Saldo Corrente di ${formatCurrency(currentSaldo)} archiviato con successo. Il gioco è stato resettato.`);
+            if (success) {
+                 resetAllMainData(); 
+                 alert(`Saldo Corrente di ${formatCurrency(currentSaldo)} archiviato con successo. Il gioco è stato resettato.`);
+            } else {
+                 alert(`ERRORE: Salvataggio archivio FALLITO. I dati non sono stati resettati.`);
+            }
         }
         
         async function checkRichiamaUltimiButtonState() {
@@ -963,13 +971,26 @@
         
         async function resetStatsArchive() {
             if (confirm("Sei sicuro di voler resettare TUTTO l'archivio delle statistiche e i numeri estratti? Questa azione è irreversibile sul Cloud.")) {
+                
+                // 1. Tenta di resettare i numeri estratti
+                const successNumbers = await saveLastExtractedNumbersToCloud([]);
+                
+                // 2. Tenta di resettare l'archivio sessioni
                 sessionArchives = [];
-                await saveArchivesToCloud();
-                await saveLastExtractedNumbersToCloud([]);
-
-                updateStatsTables();
-                checkRichiamaUltimiButtonState(); 
-                alert('Archivio statistiche e numeri estratti resettati con successo nel Cloud.');
+                const successStats = await saveArchivesToCloud();
+                
+                if (successStats && successNumbers) {
+                    // Se entrambi i salvataggi sono riusciti, aggiorniamo l'interfaccia
+                    updateStatsTables(); // Aggiorna la tabella visualizzata (ora vuota)
+                    checkRichiamaUltimiButtonState(); 
+                    alert('Archivio statistiche e numeri estratti resettati con successo nel Cloud.');
+                } else {
+                    // Se il salvataggio fallisce, ricarichiamo i dati che non siamo riusciti a sovrascrivere.
+                    alert('ERRORE CRITICO: Il reset sul Cloud è fallito. I dati precedenti verranno ricaricati.');
+                    await loadArchivesFromCloud(); // Ricarica i vecchi dati se il salvataggio è fallito
+                    updateStatsTables();
+                    checkRichiamaUltimiButtonState(); 
+                }
             }
         }
         
