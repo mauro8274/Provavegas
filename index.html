@@ -802,42 +802,37 @@
         // ===============================================
         
         async function fetchBin(binId) {
-            // Logica di fallback per la lettura: tenta senza Master Key (per Bin pubblici)
-            // e in caso di fallimento, ritenta con la Master Key.
-            
-            async function attemptFetch(useKey) {
-                const headers = useKey ? { 'X-Master-Key': JSON_BIN_API_KEY } : {};
-                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, { headers: headers });
+            try {
+                // Usiamo la Master Key per garantire l'accesso al Bin v3
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+                    headers: { 'X-Master-Key': JSON_BIN_API_KEY } 
+                });
                 
                 if (!response.ok) {
-                    throw new Error(`Errore HTTP: ${response.status} (Key: ${useKey})`);
+                    // Se c'è un errore HTTP (es. 401, 404)
+                    throw new Error(`Errore HTTP: ${response.status}. Controlla Master Key o ID Bin.`);
                 }
+                
                 const data = await response.json();
                 
-                // Estrazione robusta: cerca 'record' o usa il corpo intero
                 let extractedRecord = data.record;
+                
+                // Fallback robusto: se il campo 'record' non c'è, usiamo l'intero corpo
                 if (!extractedRecord && Array.isArray(data)) {
                     extractedRecord = data;
                 }
-                
+
                 if (extractedRecord && Array.isArray(extractedRecord)) {
                     return extractedRecord;
                 }
+                
+                // Se tutto fallisce, restituisce array vuoto (da cui Elementi: 0)
                 return []; 
-            }
-
-            try {
-                // Tentativo 1: Senza Master Key (più compatibile con Bin pubblici)
-                return await attemptFetch(false);
-            } catch (errorNoKey) {
-                console.warn(`Lettura Bin ${binId} senza chiave fallita. Tentativo con chiave...`, errorNoKey.message);
-                try {
-                    // Tentativo 2: Con Master Key
-                    return await attemptFetch(true);
-                } catch (errorWithKey) {
-                    console.error(`ERRORE DEFINITIVO: Impossibile leggere il Bin ${binId} anche con la Master Key.`, errorWithKey.message);
-                    return [];
-                }
+                
+            } catch (error) {
+                console.error(`Errore nel caricamento del Bin ${binId}:`, error);
+                // In caso di errore di rete o JSON, restituisci array vuoto.
+                return []; 
             }
         }
         
