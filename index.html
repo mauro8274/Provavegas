@@ -408,12 +408,12 @@
         // ===============================================
         // CONFIGURAZIONE JSONBIN.IO (CLOUD STORAGE)
         // ===============================================
-        // CHIAVE API: Tua Chiave Segreta JSONBin.io
+        // CHIAVE API: Tua Chiave Segreta JSONBin.io (Master Key)
         const JSON_BIN_API_KEY = "$2a$10$8dACwQJZAht.YckQDEM84.G5haMyUwwQg.AwJKt54bEqQCxczCC6C";
         
-        // ID BIN: STATISTICHE E NUMERI
-        const STATS_BIN_ID = "69392954d0ea881f401efdb2"; // ID per l'archivio delle sessioni
-        const NUMBERS_BIN_ID = "69392937d0ea881f401efd8a"; // ID per gli ultimi 10 numeri
+        // ID BIN: STATISTICHE E NUMERI (AGGIORNATI CON I NUOVI PUBBLICI)
+        const STATS_BIN_ID = "69392f91d0ea881f401f0a12"; // NUOVO ID per l'archivio delle sessioni
+        const NUMBERS_BIN_ID = "69392f8ad0ea881f401f09fd"; // NUOVO ID per gli ultimi 10 numeri
         
         // ===============================================
         // VARIABILI GLOBALI e STRUTTURE DATI
@@ -802,13 +802,10 @@
         // ===============================================
         
         async function fetchBin(binId) {
-            if (binId === "INSERISCI_ID_BIN_STATS_QUI" || binId === "INSERISCI_ID_BIN_NUMERI_QUI" || binId === "") {
-                 console.warn("Attenzione: ID Bin non configurato.");
-                 return null;
-            }
             try {
+                // Per i Bin Pubblici, non è strettamente necessaria la Master Key per la lettura
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-                    headers: { 'X-Master-Key': JSON_BIN_API_KEY }
+                    headers: { 'X-Master-Key': JSON_BIN_API_KEY } 
                 });
                 if (!response.ok) {
                     throw new Error(`Errore HTTP: ${response.status}`);
@@ -829,21 +826,19 @@
         }
         
         async function updateBin(binId, data) {
-             if (binId === "INSERISCI_ID_BIN_STATS_QUI" || binId === "INSERISCI_ID_BIN_NUMERI_QUI" || binId === "") {
-                 console.warn("Attenzione: ID Bin non configurato.");
-                 return false;
-            }
             try {
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Master-Key': JSON_BIN_API_KEY
+                        'X-Master-Key': JSON_BIN_API_KEY // Richiesta la Master Key per PUT
                     },
                     body: JSON.stringify(data)
                 });
                 if (!response.ok) {
-                    console.error(`Salvataggio Bin ${binId} fallito con stato: ${response.status}`);
+                    // Logga il codice di errore specifico per la diagnosi
+                    const errorDetails = await response.text(); 
+                    console.error(`Salvataggio Bin ${binId} fallito. Stato: ${response.status}. Dettagli:`, errorDetails);
                     return false;
                 }
                 return true;
