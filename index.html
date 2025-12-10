@@ -34,9 +34,9 @@
             margin: 0;
         }
         .header-image-container img {
-            max-width: 100%; /* Rende l'immagine responsiva */
+            max-width: 100%; 
             height: auto;
-            max-height: 100px; /* Limita l'altezza per non occupare troppo spazio */
+            max-height: 100px; 
         }
 
         .container {
@@ -406,6 +406,16 @@
 
     <script>
         // ===============================================
+        // CONFIGURAZIONE JSONBIN.IO (CLOUD STORAGE)
+        // ===============================================
+        // CHIAVE API: Tua Chiave Segreta JSONBin.io
+        const JSON_BIN_API_KEY = "$2a$10$8dACwQJZAht.YckQDEM84.G5haMyUwwQg.AwJKt54bEqQCxczCC6C";
+        
+        // ID BIN: STATISTICHE E NUMERI
+        const STATS_BIN_ID = "69392954d0ea881f401efdb2"; // ID per l'archivio delle sessioni
+        const NUMBERS_BIN_ID = "69392937d0ea881f401efd8a"; // ID per gli ultimi 10 numeri
+        
+        // ===============================================
         // VARIABILI GLOBALI e STRUTTURE DATI
         // ===============================================
         const inputEstratto = document.getElementById('numero-estratto');
@@ -439,7 +449,7 @@
         const PROGRESSION_MULTIPLIERS = [
             { BIG: 4, MEDI: 2, MINI: 1 }, { BIG: 4, MEDI: 2, MINI: 1 }, { BIG: 4, MEDI: 2, MINI: 1 },
             { BIG: 6, MEDI: 4, MINI: 1 }, { BIG: 6, MEDI: 4, MINI: 2 }, { BIG: 10, MEDI: 8, MINI: 4 },
-            { BIG: 8, MEDI: 4, MINI: 0 }, // Step 7: I MINI non sono più puntati (moltiplicatore 0)
+            { BIG: 8, MEDI: 4, MINI: 0 }, 
             { BIG: 8, MEDI: 5, MINI: 0 }, 
             { BIG: 10, MEDI: 5, MINI: 0 },
             { BIG: 10, MEDI: 6, MINI: 0 }, 
@@ -464,8 +474,6 @@
         let currentStep = 0; 
         let currentSaldo = 0; 
         let winStepForArchive = null; 
-        
-        // STATO GLOBALE ARCHIVIO
         let sessionArchives = []; 
 
         // ===============================================
@@ -486,6 +494,7 @@
             const medioBet = mult.MEDI * unitValue;
             const miniBet = mult.MINI * unitValue;
             
+            // La puntata totale include 1 BIG, 2 MEDI, 4 MINI (fino allo step 6)
             const totalStake = bigBet + (2 * medioBet) + (4 * miniBet);
 
             return { bigBet, medioBet, miniBet, totalStake };
@@ -661,7 +670,6 @@
                 } else if (winIndex === 1 || winIndex === 2) { 
                     betOnWinNumber = currentStake.medioBet;
                 } else if (winIndex >= 3 && currentStep <= 6) { 
-                    // I MINI numeri sono giocati solo fino allo step 6 
                     betOnWinNumber = currentStake.miniBet;
                 } 
                 
@@ -672,9 +680,8 @@
                 winStepForArchive = currentStep; 
                 
                 // MESSAGGIO DI VINCITA AGGIORNATO
-                alert(`HAI VINTO ${formatCurrency(winLord)}! Il saldo Real Time aggiornato è ${formatCurrency(currentSaldo)}. Archivia la sessione.`);
+                alert(`HAI VINTO ${formatCurrency(winLord)}!! Il saldo Real time aggiornato è ${formatCurrency(currentSaldo)}. Archivia la sessione`);
                 
-                // Disabilita l'input per forzare l'archiviazione e PRESERVA LO STATO
                 inputEstratto.disabled = true; 
 
             } else {
@@ -744,7 +751,7 @@
             updateSuggestedNumbers(null); 
         }
 
-        function resetAllMainData() {
+        async function resetAllMainData() {
             numeriEstratti = [];
             currentSaldo = 0; 
             saldoRealTime.textContent = formatCurrency(currentSaldo);
@@ -769,6 +776,9 @@
             inputEstratto.focus();
             inputEstratto.disabled = false; 
             
+            // Salviamo lo stato vuoto dei numeri estratti sul cloud
+            await saveLastExtractedNumbersToCloud([]);
+            
             checkRichiamaUltimiButtonState();
         }
 
@@ -788,27 +798,101 @@
         }
 
         // ===============================================
-        // GESTIONE ARCHIVIO E LOCAL STORAGE
+        // FUNZIONI CLOUD (JSONBin.io)
         // ===============================================
         
-        function loadArchives() {
-            const data = localStorage.getItem('vegas7_stats_archive');
-            if (data) sessionArchives = JSON.parse(data);
-            else sessionArchives = [];
+        async function fetchBin(binId) {
+            if (binId === "INSERISCI_ID_BIN_STATS_QUI" || binId === "INSERISCI_ID_BIN_NUMERI_QUI" || binId === "") {
+                 console.warn("Attenzione: ID Bin non configurato.");
+                 return null;
+            }
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+                    headers: { 'X-Master-Key': JSON_BIN_API_KEY }
+                });
+                if (!response.ok) {
+                    throw new Error(`Errore HTTP: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // JSONBin.io restituisce un oggetto con la proprietà 'record'
+                if (data && data.record !== undefined) {
+                    // Se il record è nullo o vuoto (e deve essere un array), restituisci array vuoto per evitare errori
+                    if (data.record === null || (typeof data.record === 'object' && Object.keys(data.record).length === 0)) {
+                        return [];
+                    }
+                    return data.record;
+                }
+                return data; // Ritorna l'oggetto completo se non c'è la chiave 'record' (dipende dalla versione API)
+                
+            } catch (error) {
+                console.error(`Errore nel caricamento del Bin ${binId}:`, error);
+                return null;
+            }
         }
-        function saveArchives() {
-            localStorage.setItem('vegas7_stats_archive', JSON.stringify(sessionArchives));
-        }
-        function loadLastExtractedNumbers() {
-            const data = localStorage.getItem('vegas7_last_10_numbers');
-            return data ? JSON.parse(data) : [];
-        }
-        function saveLastExtractedNumbers() {
-            const last10 = numeriEstratti.slice(0, 10);
-            localStorage.setItem('vegas7_last_10_numbers', JSON.stringify(last10));
+        
+        async function updateBin(binId, data) {
+             if (binId === "INSERISCI_ID_BIN_STATS_QUI" || binId === "INSERISCI_ID_BIN_NUMERI_QUI" || binId === "") {
+                 console.warn("Attenzione: ID Bin non configurato.");
+                 return false;
+            }
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSON_BIN_API_KEY
+                    },
+                    body: JSON.stringify(data)
+                });
+                return response.ok;
+            } catch (error) {
+                console.error(`Errore nel salvataggio del Bin ${binId}:`, error);
+                return false;
+            }
         }
 
-        function archiveCurrentSaldo() {
+        async function loadArchivesFromCloud() {
+            const data = await fetchBin(STATS_BIN_ID);
+            if (data && Array.isArray(data)) {
+                sessionArchives = data;
+            } else {
+                sessionArchives = [];
+            }
+            console.log("Archivio statistiche caricato dal Cloud.");
+        }
+        
+        async function saveArchivesToCloud() {
+            const success = await updateBin(STATS_BIN_ID, sessionArchives);
+            if (success) {
+                console.log("Archivio statistiche salvato su Cloud.");
+            } else {
+                 alert("ERRORE: Impossibile salvare l'archivio sul Cloud. Controlla la tua Chiave API e l'ID Bin.");
+            }
+        }
+        
+        async function loadLastExtractedNumbersFromCloud() {
+            const data = await fetchBin(NUMBERS_BIN_ID);
+            if (data && Array.isArray(data)) {
+                return data;
+            }
+            return [];
+        }
+        
+        async function saveLastExtractedNumbersToCloud(numbers) {
+            // Salva solo gli ultimi 10 numeri
+            const numbersToSave = numbers.slice(0, 10);
+            const success = await updateBin(NUMBERS_BIN_ID, numbersToSave);
+            if (!success) {
+                 console.error("Impossibile salvare gli ultimi numeri estratti sul Cloud.");
+            }
+        }
+        
+        // ===============================================
+        // GESTIONE ARCHIVIO E STATO
+        // ===============================================
+
+        async function archiveCurrentSaldo() {
             const timestamp = new Date().toLocaleString('it-IT', { 
                 day: '2-digit', month: '2-digit', year: 'numeric', 
                 hour: '2-digit', minute: '2-digit', second: '2-digit' 
@@ -820,17 +904,19 @@
                 winStep: currentSaldo > 0 ? winStepForArchive : null 
             };
             sessionArchives.unshift(newEntry);
-            saveArchives();
             
-            saveLastExtractedNumbers(); 
+            await saveArchivesToCloud();
+            await saveLastExtractedNumbersToCloud(numeriEstratti); 
+            
             resetAllMainData(); 
             
             alert(`Saldo Corrente di ${formatCurrency(currentSaldo)} archiviato con successo. Il gioco è stato resettato.`);
         }
         
-        function checkRichiamaUltimiButtonState() {
-            const lastNumbers = loadLastExtractedNumbers();
-            const shouldBeDisabled = isBettingPhase || numeriEstratti.length > 0 || lastNumbers.length === 0;
+        async function checkRichiamaUltimiButtonState() {
+            const lastNumbers = await loadLastExtractedNumbersFromCloud();
+            // Disabilita se siamo in fase di scommessa, se abbiamo numeri estratti non archiviati o se non ci sono numeri salvati nel cloud
+            const shouldBeDisabled = isBettingPhase || (numeriEstratti.length > 0 && winStepForArchive === null) || lastNumbers.length === 0;
             btnRichiamaUltimi.disabled = shouldBeDisabled;
         }
         
@@ -875,20 +961,22 @@
             if (totalSaldo < 0) totalSaldoCell.classList.add('negative-saldo');
         }
         
-        function resetStatsArchive() {
-            if (confirm("Sei sicuro di voler resettare TUTTO l'archivio delle statistiche?")) {
+        async function resetStatsArchive() {
+            if (confirm("Sei sicuro di voler resettare TUTTO l'archivio delle statistiche e i numeri estratti? Questa azione è irreversibile sul Cloud.")) {
                 sessionArchives = [];
-                localStorage.removeItem('vegas7_stats_archive');
-                localStorage.removeItem('vegas7_last_10_numbers'); 
+                await saveArchivesToCloud();
+                await saveLastExtractedNumbersToCloud([]);
+
                 updateStatsTables();
                 checkRichiamaUltimiButtonState(); 
-                alert('Archivio statistiche resettato con successo.');
+                alert('Archivio statistiche e numeri estratti resettati con successo nel Cloud.');
             }
         }
         
-        function displayStatsPage() {
-            loadArchives(); 
+        async function displayStatsPage() {
+            await loadArchivesFromCloud(); 
             updateStatsTables();
+            
             document.getElementById('back-to-main').addEventListener('click', () => { 
                 statsPage.style.display = 'none';
                 mainPage.style.display = 'block';
@@ -905,80 +993,81 @@
         // INIZIALIZZAZIONE & LISTENER
         // ===============================================
 
-        window.onload = () => {
+        window.onload = async () => {
             valoreUnitarioInput.value = '0,10'; 
             initializeProgressionTable(); 
-            loadArchives(); 
+            
+            // Tentiamo di caricare i numeri estratti all'avvio
+            numeriEstratti = await loadLastExtractedNumbersFromCloud();
+            if (numeriEstratti.length > 0) {
+                 analyzeExtractedNumbers(numeriEstratti); // Ricarica lo stato della griglia
+            }
+
             checkRichiamaUltimiButtonState(); 
             
-            // Re-assegna i listener ai pulsanti dell'archivio (se non sono stati già fatti in modo fisso)
-            document.getElementById('visualizza-archivio').addEventListener('click', displayStatsPage); 
-            document.getElementById('archivia-saldo').addEventListener('click', archiveCurrentSaldo); 
-        };
-
-        // Listener Principale (Input Numero Estratto)
-        inputEstratto.addEventListener('change', (event) => {
-            const valoreInput = event.target.value;
-            if (valoreInput === '') return; 
-            const numero = parseInt(valoreInput);
-            
-            if (numero >= 0 && numero <= 36) {
-                numeriEstratti.unshift(numero); 
-                updateEstrattiList();
+            // Listener Principale (Input Numero Estratto)
+            inputEstratto.addEventListener('change', (event) => {
+                const valoreInput = event.target.value;
+                if (valoreInput === '') return; 
+                const numero = parseInt(valoreInput);
                 
-                if (isBettingPhase) {
-                    processBettingPhase(numero);
+                if (numero >= 0 && numero <= 36) {
+                    numeriEstratti.unshift(numero); 
+                    updateEstrattiList();
+                    
+                    if (isBettingPhase) {
+                        processBettingPhase(numero);
+                    } else {
+                        tracciaNumeroPreGame(numero, false); 
+                    }
+
+                    event.target.value = '';
+                    event.target.focus();
+                    
+                    checkRichiamaUltimiButtonState();
                 } else {
-                    tracciaNumeroPreGame(numero, false); 
+                    alert('Inserisci un numero valido tra 0 e 36.');
+                    event.target.value = '';
+                    event.target.focus();
                 }
+            });
 
-                event.target.value = '';
-                event.target.focus();
-                
-                checkRichiamaUltimiButtonState();
-            } else {
-                alert('Inserisci un numero valido tra 0 e 36.');
-                event.target.value = '';
-                event.target.focus();
-            }
-        });
-        
-        // Listener per l'aggiornamento della tabella di progressione quando cambia il Valore Unitario
-        valoreUnitarioInput.addEventListener('input', () => {
-             initializeProgressionTable();
-        });
-        
-        btnResetProgressione.addEventListener('click', () => {
-             if (confirm("Sei sicuro di voler resettare la progressione di puntate (tornare allo stato pre-gioco)?")) {
-                resetProgressionState();
-                alert('Progressione resettata. In attesa di una nuova riga vincente.');
-                checkRichiamaUltimiButtonState();
-             }
-        });
+            // Listener per l'aggiornamento della tabella di progressione quando cambia il Valore Unitario
+            valoreUnitarioInput.addEventListener('input', initializeProgressionTable);
+            
+            btnResetProgressione.addEventListener('click', () => {
+                 if (confirm("Sei sicuro di voler resettare la progressione di puntate (tornare allo stato pre-gioco)?")) {
+                    resetProgressionState();
+                    alert('Progressione resettata. In attesa di una nuova riga vincente.');
+                    checkRichiamaUltimiButtonState();
+                 }
+            });
 
-        // Listener Reset Numeri (Completo)
-        btnResetNumeri.addEventListener('click', () => {
-            if(confirm("Sei sicuro di voler resettare tutti i dati (numeri estratti, bruciature, fase di gioco e saldo) della pagina principale?")) {
-                resetAllMainData();
-                alert('Tutti i dati della pagina principale sono stati resettati.');
-            }
-        });
-        
-        // Listener Richiama Ultimi
-        btnRichiamaUltimi.addEventListener('click', () => {
-            const lastNumbers = loadLastExtractedNumbers();
-            if (lastNumbers.length > 0) {
-                resetAllMainData();
-                numeriEstratti = lastNumbers;
-                analyzeExtractedNumbers(numeriEstratti);
-                alert(`Caricati ${lastNumbers.length} numeri dalla sessione precedente.`);
-            } else {
-                alert('Nessun numero precedente salvato da richiamare.');
-            }
-        });
-        
-        // I listener per Visualizza Archivio, Archivia Saldo, Back to Main e Reset Archivio
-        // sono stati gestiti in modo fisso in window.onload e displayStatsPage per garantire la persistenza.
+            // Listener Reset Numeri (Completo)
+            btnResetNumeri.addEventListener('click', () => {
+                if(confirm("Sei sicuro di voler resettare tutti i dati (numeri estratti, bruciature, fase di gioco e saldo) della pagina principale?")) {
+                    resetAllMainData();
+                    alert('Tutti i dati della pagina principale sono stati resettati.');
+                }
+            });
+            
+            // Listener Archivio
+            btnVisualizzaArchivio.addEventListener('click', displayStatsPage); 
+            btnArchiviaSaldo.addEventListener('click', archiveCurrentSaldo); 
+            
+            // Listener Richiama Ultimi
+            btnRichiamaUltimi.addEventListener('click', async () => {
+                const lastNumbers = await loadLastExtractedNumbersFromCloud();
+                if (lastNumbers.length > 0) {
+                    resetAllMainData();
+                    numeriEstratti = lastNumbers;
+                    analyzeExtractedNumbers(numeriEstratti);
+                    alert(`Caricati ${lastNumbers.length} numeri dalla sessione precedente.`);
+                } else {
+                    alert('Nessun numero precedente salvato da richiamare.');
+                }
+            });
+        };
     </script>
 
 </body>
