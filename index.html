@@ -409,11 +409,11 @@
         // CONFIGURAZIONE JSONBIN.IO (CLOUD STORAGE)
         // ===============================================
         // CHIAVE API: Tua Nuova Master Key
-        const JSON_BIN_API_KEY = "$2a$10$0Wol/B/rNMhNBEp5RFF6.uGNgyVMWJBwl/HPW3lI5B7IGiRgUZAlO";
+        const JSON_BIN_API_KEY = "$2a$10$u3Y8zmMglsUMZfwaxg3Nv.jlOMhoszED1iH71k1CiYvnhbndojJIm";
         
         // ID BIN: STATISTICHE E NUMERI (BIN PUBBLICI CONFERMATI)
-        const STATS_BIN_ID = "69392f91d0ea881f401f0a12"; 
-        const NUMBERS_BIN_ID = "69392f8ad0ea881f401f09fd"; 
+        const STATS_BIN_ID = "69395cce43b1c97be9e44dcc"; 
+        const NUMBERS_BIN_ID = "69395cc443b1c97be9e44dbe"; 
         
         // ===============================================
         // VARIABILI GLOBALI e STRUTTURE DATI
@@ -803,7 +803,7 @@
         
         async function fetchBin(binId) {
             try {
-                // Per i Bin Pubblici, non è strettamente necessaria la Master Key per la lettura, ma la includiamo per coerenza
+                // Usiamo sempre il tag /latest
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
                     headers: { 'X-Master-Key': JSON_BIN_API_KEY } 
                 });
@@ -812,20 +812,39 @@
                 }
                 const data = await response.json();
                 
-                // Estrai il record, gestendo i casi in cui è nullo o vuoto
-                const record = data.record;
-                if (record === null || (typeof record === 'object' && Object.keys(record).length === 0)) {
-                    return [];
+                // --- MODIFICA CRITICA: Estrazione più robusta del record ---
+                
+                let extractedRecord = null;
+                
+                // 1. Tenta di estrarre dall'oggetto 'record' (formato standard JSONBin v3)
+                if (data && data.record !== undefined) {
+                    extractedRecord = data.record;
+                } 
+                
+                // 2. Se 'record' non è disponibile, usa l'intero corpo della risposta come record, 
+                //    se è un array (utile per i Bin semplici o problemi di wrapper)
+                else if (Array.isArray(data)) {
+                    extractedRecord = data;
                 }
-                return record;
+
+                // 3. Verifica robusta che extractedRecord sia un array valido
+                if (extractedRecord && Array.isArray(extractedRecord)) {
+                    return extractedRecord;
+                }
+                
+                // Se non troviamo un array, restituiamo un array vuoto
+                return []; 
                 
             } catch (error) {
                 console.error(`Errore nel caricamento del Bin ${binId}:`, error);
-                return null;
+                return []; 
             }
         }
         
         async function updateBin(binId, data) {
+            // Avvolgiamo i dati nell'oggetto 'record' per compatibilità con i nuovi Bin
+            const payload = { record: data };
+            
             try {
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
                     method: 'PUT',
@@ -833,7 +852,7 @@
                         'Content-Type': 'application/json',
                         'X-Master-Key': JSON_BIN_API_KEY // Richiesta la Master Key per PUT
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(payload)
                 });
                 if (!response.ok) {
                     // Logga il codice di errore specifico per la diagnosi
@@ -903,6 +922,8 @@
                 saldo: currentSaldo,
                 winStep: currentSaldo > 0 ? winStepForArchive : null 
             };
+            
+            // AGGIORNA L'ARRAY LOCALE
             sessionArchives.unshift(newEntry);
             
             const success = await saveArchivesToCloud();
@@ -967,10 +988,10 @@
         async function resetStatsArchive() {
             if (confirm("Sei sicuro di voler resettare TUTTO l'archivio delle statistiche e i numeri estratti? Questa azione è irreversibile sul Cloud.")) {
                 
-                // 1. Tenta di resettare i numeri estratti
+                // 1. Tenta di resettare i numeri estratti (salvando un array vuoto [])
                 const successNumbers = await saveLastExtractedNumbersToCloud([]);
                 
-                // 2. Tenta di resettare l'archivio sessioni
+                // 2. Tenta di resettare l'archivio sessioni (salvando un array vuoto [])
                 sessionArchives = [];
                 const successStats = await saveArchivesToCloud();
                 
